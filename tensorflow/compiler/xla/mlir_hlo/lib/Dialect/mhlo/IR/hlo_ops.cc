@@ -1347,6 +1347,83 @@ LogicalResult DotOp::verify() {
 }
 
 //===----------------------------------------------------------------------===//
+// _FusedMatMulOp
+//===----------------------------------------------------------------------===//
+
+namespace {
+
+ShapedType inferFusedMatMulReturnType(ShapedType input0Type, ShapedType input1Type,
+                            ShapedType biasType, bool transpose_a, bool transpose_b) {
+  auto elementType = input0Type.getElementType();
+  if (!input0Type.hasRank() || !input1Type.hasRank() || !biasType.hasRank()) {
+    return UnrankedTensorType::get(elementType);
+  }
+
+  // The first and second input of FusedMatMul should be 2D. The third one should be 1D.
+  if (input0Type.getRank() != 2 || input1Type.getRank() != 2 || biasType.getRank() != 1) {
+    return {};
+  }
+
+  // Consider that the first and second input can be transposed.
+  int64_t input00, input01, input10, input11;
+  if (transpose_a) {
+    input00 = input0Type.getDimSize(1);
+    input01 = input0Type.getDimSize(0);
+  } else {
+    input00 = input0Type.getDimSize(0);
+    input01 = input0Type.getDimSize(1);
+  }
+  if (transpose_b) {
+    input10 = input1Type.getDimSize(1);
+    input11 = input1Type.getDimSize(0);
+  } else {
+    input10 = input1Type.getDimSize(0);
+    input11 = input1Type.getDimSize(1);
+  }
+  if (!dimCompatible(input01, input10) || !dimCompatible(input11, biasType.getDimSize(0))) {
+    return {};
+  }
+  return RankedTensorType::get({input00, input11}, elementType);
+}
+}
+
+LogicalResult _FusedMatMulOp::inferReturnTypes(
+    MLIRContext*, Optional<Location>, ValueRange operands, DictionaryAttr attributes,
+    RegionRange, SmallVectorImpl<Type>& inferredReturnTypes) {
+  //_FusedMatMulOp::Adaptor op(operands);
+  auto input0Type = operands[0].getType().cast<ShapedType>();
+  auto input1Type = operands[1].getType().cast<ShapedType>();
+  auto biasType = operands[2].getType().cast<ShapedType>();
+  auto transpose_a = attributes.get("transpose_a").cast<BoolAttr>().getValue();
+  auto transpose_b = attributes.get("transpose_b").cast<BoolAttr>().getValue();
+  inferredReturnTypes.push_back(inferFusedMatMulReturnType(input0Type, input1Type, biasType, transpose_a, transpose_b));
+  return success();
+}
+
+LogicalResult _FusedMatMulOp::verify() {
+  auto input0Type = getLhs().getType().cast<ShapedType>();
+  auto input1Type = getRhs().getType().cast<ShapedType>();
+  auto biasType = getBias().getType().cast<ShapedType>();
+  auto resultType = getType().cast<ShapedType>();
+  bool transpose_a = getTransposeA();
+  bool transpose_b = getTransposeB();
+  auto expectReturnType = inferFusedMatMulReturnType(input0Type, input1Type, biasType, transpose_a, transpose_b);
+  if (!expectReturnType) {
+    return emitError() << "Unexpected operands type: " << input0Type << " " 
+                       << input1Type << " and " << biasType;
+  }
+  if (resultType.hasRank() && expectReturnType.hasRank()) {
+    if (resultType.getShape() != expectReturnType.getShape()) {
+      return emitError() << "Unexpected result type: has " << resultType
+                         << " but inferred " << expectReturnType
+                         << " from operands " << input0Type << " " << input1Type 
+                         << " and " << biasType;
+    }
+  }
+  return success();
+}
+
+//===----------------------------------------------------------------------===//
 // DotGeneralOp
 //===----------------------------------------------------------------------===//
 

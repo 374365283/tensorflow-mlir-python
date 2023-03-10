@@ -2946,4 +2946,31 @@ def HLO_CstrReshapableOp :
   let hasCustomHLOConverter = 1;
 }
 
+def HLO__FusedMatMulOp: HLO_Op<"fused_matmul",
+    [Pure, DeclareOpInterfaceMethods<InferTypeOpInterface>]> {
+  let summary = "Fused MatMul operator";
+  let description = [{
+    Performs dot, add and relu between vectors, vector/matrix and matrix/matrix
+    multiplication.
+  }];
+  let arguments = (
+    ins HLO_Tensor:$lhs,
+    HLO_Tensor:$rhs,
+    HLO_Tensor:$bias,
+HLO_PrecisionConfigAttr:$precision_config,
+DefaultValuedOptionalAttr<BoolAttr, "false">:$transpose_a,
+DefaultValuedOptionalAttr<BoolAttr, "false">:$transpose_b,
+DefaultValuedOptionalAttr<StrArrayAttr, "{}">:$fused_ops,
+DefaultValuedOptionalAttr<F32Attr, "0.0000f">:$epsilon
+  );
+  let results = (outs HLO_Tensor);
+  let hasCustomHLOConverter = 1;
+  let hasVerifier = 1;
+  let extraClassDeclaration = [{
+    static bool isCompatibleReturnTypes(TypeRange l, TypeRange r) {
+      return succeeded(mlir::verifyCompatibleShapes(l, r));
+    }
+  }];
+}
+
 #endif // MLIR_HLO_DIALECT_MHLO_IR_HLO_OPS

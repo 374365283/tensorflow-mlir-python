@@ -702,6 +702,10 @@ namespace mlir {
 namespace mhlo {
 namespace {
 
+LogicalResult ExportXlaOp(_FusedMatMulOp op, OpLoweringContext ctx) {
+  return failure();
+}
+
 LogicalResult ExportXlaOp(ComputeReshapeShapeOp, OpLoweringContext) {
   // This op has no expression in the legacy export format. It can be expanded
   // to a sequence of operations if needed in the future, but would feed into
