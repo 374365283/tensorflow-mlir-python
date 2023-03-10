@@ -328,3 +328,9 @@ def PrepareForExportPass : Pass<"xla-prepare-for-export", "mlir::func::FuncOp"> 
     canonicalization may undo transformations.
   }];
 }
+
+def MhloOpFusionPass : Pass<"mhlo-op-fusion", "func::FuncOp"> {
+  let summary = "Fuse Dot, Add and Relu operaiotns into FusedMatmul.";
+  let constructor = "createMhloOpFusionPass()";
+}
+

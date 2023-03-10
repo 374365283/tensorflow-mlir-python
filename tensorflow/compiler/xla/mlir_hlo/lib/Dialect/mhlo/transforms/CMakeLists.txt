@@ -351,6 +351,27 @@ add_mlir_library(StablehloToMhlo
   StablehloOps
 )
 
+add_mlir_library(MhloOpFusion
+  mhlo_fuse_matmul_op.cc
+
+  DEPENDS
+  MLIRhlo_opsIncGen
+  MLIRMhloPassIncGen
+
+  LINK_COMPONENTS
+  Core
+
+  LINK_LIBS PUBLIC
+  MhloDialect
+  MLIRIR
+  MLIRPass
+  MLIRRewrite
+  MLIRFuncDialect
+  MLIRTensorDialect
+  MLIRTransforms
+  MLIRTransformUtils
+)
+
 add_library(AllMhloPasses INTERFACE)
 target_link_libraries(AllMhloPasses INTERFACE
   ChloPasses
@@ -365,6 +386,7 @@ target_link_libraries(AllMhloPasses INTERFACE
   MhloShapeOpsToStandard
   MhloToStablehlo
   StablehloToMhlo
+  MhloOpFusion
 )
 
 add_library(AllGmlStPasses INTERFACE)

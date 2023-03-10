@@ -610,6 +610,7 @@ cc_library(
         "lib/Dialect/mhlo/transforms/stablehlo_legalize_to_hlo_pass.cc",
         "lib/Dialect/mhlo/transforms/test_infer_shaped_type_pass.cc",
         "lib/Dialect/mhlo/transforms/unfuse_batch_norm_pass.cc",
+        "lib/Dialect/mhlo/transforms/mhlo_op_fusion.cc",
     ],
     hdrs = [
         "include/mlir-hlo/Dialect/mhlo/transforms/bufferizable_op_interface_impl.h",
