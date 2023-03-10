@@ -26,6 +26,7 @@ cc_library(
         "//tensorflow/c/eager:c_api",
         "//tensorflow/c/eager:tfe_context_internal",
         "//tensorflow/compiler/xla/mlir_hlo:all_passes",
+        "//tensorflow/compiler/xla/mlir_hlo:hlo_dialect_registration",
         "//tensorflow/compiler/mlir/lite:tensorflow_lite",
         "//tensorflow/compiler/mlir/tensorflow",
         "//tensorflow/compiler/mlir/tensorflow:import_model",
@@ -65,6 +66,7 @@ cc_library(
         # as part of the libtensorflow_framework.so, as it is the central
         # place for core related components.
         "//tensorflow/compiler/mlir/tensorflow:graph_optimization_pass_registration",  # buildcleaner: keep
+        "//tensorflow/compiler/mlir/tensorflow:compile_mlir_util",
     ],
     alwayslink = 1,
 )

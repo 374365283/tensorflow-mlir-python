@@ -54,6 +54,9 @@ std::string ImportGraphDef(const std::string &proto,
                            absl::string_view(input_data_shapes),
                            absl::string_view(output_names), TF_Status *status);
 
+std::string ExportGraphDef(const std::string& mlir_txt, const std::string& pass_pipeline,
+                                      bool show_debug_info, TF_Status* status);
+                                      
 // Load a SavedModel and return a textual MLIR string corresponding to it.
 //
 // Args:

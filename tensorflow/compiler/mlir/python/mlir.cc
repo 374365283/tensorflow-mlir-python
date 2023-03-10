@@ -41,10 +41,12 @@ limitations under the License.
 #include "tensorflow/compiler/mlir/tensorflow/transforms/passes.h"
 #include "tensorflow/compiler/mlir/tensorflow/transforms/tf_saved_model_passes.h"
 #include "tensorflow/compiler/mlir/tensorflow/translate/import_model.h"
+#include "tensorflow/compiler/mlir/tensorflow/translate/export_graphdef.h"
 #include "tensorflow/compiler/mlir/tensorflow/translate/mlir_roundtrip_flags.h"
 #include "tensorflow/compiler/mlir/tensorflow/translate/tf_mlir_translate.h"
 #include "tensorflow/compiler/mlir/tensorflow/utils/error_util.h"
 #include "tensorflow/compiler/mlir/tensorflow/utils/import_utils.h"
+#include "tensorflow/compiler/mlir/tensorflow/utils/compile_mlir_util.h"
 #include "tensorflow/compiler/mlir/tools/kernel_gen/ir/tf_framework_ops.h"
 #include "tensorflow/compiler/mlir/tosa/tf_passes.h"
 #include "tensorflow/compiler/mlir/tosa/tf_tfl_passes.h"
@@ -54,6 +56,7 @@ limitations under the License.
 #include "tensorflow/compiler/mlir/xla/transforms/xla_passes.h"
 #include "tensorflow/compiler/xla/mlir_hlo/include/mlir-hlo/Dialect/lhlo/transforms/passes.h"
 #include "tensorflow/compiler/xla/mlir_hlo/include/mlir-hlo/Dialect/mhlo/transforms/passes.h"
+#include "tensorflow/compiler/xla/mlir_hlo/include/mlir-hlo/Dialect/mhlo/IR/register.h"
 #include "tensorflow/compiler/xla/status_macros.h"
 #include "tensorflow/core/common_runtime/eager/context.h"
 #include "tensorflow/core/common_runtime/function_body.h"
@@ -91,6 +94,10 @@ static void RegisterPasses() {
     mlir::tosa::registerTFLtoTOSALegalizationPipeline();
     mlir::tosa::registerTFTFLtoTOSALegalizationPipeline();
     mlir::tf_saved_model::registerTensorFlowSavedModelPasses();
+    RegisterCreateMHloOpFusionPipeline();
+    RegisterCreateFusedMhloToTFPipeline();
+    RegisterCreateTFFunctionalToExecutorPipeline();
+    RegisterConvertMlirToXlaHloPipelineWithDefaults();
     return true;
   }();
   (void)unique_registration;
@@ -216,6 +223,37 @@ std::string ImportGraphDef(const std::string& proto,
                             specs, status);
 }
 
+static std::string ExportGraphDefImpl(const std::string& mlir_txt, const std::string& pass_pipeline,
+                                  bool show_debug_info, GraphExportConfig& specs, TF_Status* status) {
+  mlir::DialectRegistry registry;
+  mlir::RegisterAllTensorFlowDialects(registry);
+  mlir::MLIRContext context(registry);
+  mlir::StatusScopedDiagnosticHandler diagnostic_handler(&context);
+
+  // Convert tf dialect to tf exector dialect.
+  mlir::OwningOpRef<mlir::ModuleOp> module = mlir::parseSourceString<mlir::ModuleOp>(mlir_txt, &context);
+  if (!module) {
+    Set_TF_Status_from_Status(status, diagnostic_handler.ConsumeStatus());
+    return "// error";
+  }
+  std::string tf_executor_mlir_txt = RunPassPipelineOnModule(*module, pass_pipeline, show_debug_info, status);
+
+  // Convert tf executor dialect to Graphdef.
+  mlir::OwningOpRef<mlir::ModuleOp> tf_executor_module = mlir::parseSourceString<mlir::ModuleOp>(tf_executor_mlir_txt, &context);
+  if (!tf_executor_module) {
+    Set_TF_Status_from_Status(status, diagnostic_handler.ConsumeStatus());
+    return "// error";
+  }
+  StatusOr<std::unique_ptr<tensorflow::GraphDef>> graphdef(ConvertMlirToGraphdef(*tf_executor_module, specs));
+  return graphdef.value()->DebugString();
+}
+
+std::string ExportGraphDef(const std::string& mlir_txt, const std::string& pass_pipeline,
+                                      bool show_debug_info, TF_Status* status) {
+  GraphExportConfig specs;
+  return ExportGraphDefImpl(mlir_txt, pass_pipeline, show_debug_info, specs, status);
+}
+
 std::string ExperimentalConvertSavedModelToMlir(
     const std::string& saved_model_path, const std::string& exported_names_str,
     bool show_debug_info, TF_Status* status) {
@@ -324,6 +362,7 @@ std::string ExperimentalRunPassPipeline(const std::string& mlir_txt,
   RegisterPasses();
   mlir::DialectRegistry registry;
   mlir::RegisterAllTensorFlowDialects(registry);
+  mlir::mhlo::registerAllMhloDialects(registry);
   mlir::MLIRContext context(registry);
   mlir::OwningOpRef<mlir::ModuleOp> module;
   {

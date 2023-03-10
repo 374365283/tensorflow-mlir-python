@@ -905,4 +905,43 @@ void RegisterConvertMlirToXlaHloPipelineWithDefaults() {
       });
 }
 
+void CreateMHloOpFusionPipeline(mlir::OpPassManager& pm) {
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::mhlo::createMhloOpFusionPass());
+}
+
+void RegisterCreateMHloOpFusionPipeline() {
+  static mlir::PassPipelineRegistration<> pipeline(
+      "mhlo-op-fusion-pipeline",
+      "Fuse mhlo ops.",
+      [](mlir::OpPassManager& pm) {
+        tensorflow::CreateMHloOpFusionPipeline(pm);
+      });
+}
+
+void CreateFusedMhloToTFPipeline(mlir::OpPassManager& pm) {
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::TF::CreateFusedMhloToTFPass());
+}
+
+void RegisterCreateFusedMhloToTFPipeline() {
+  static mlir::PassPipelineRegistration<> pipeline(
+      "fused-mhlo-to-tf-pipeline",
+      "Convert fused mhlo op to tf dialect",
+      [](mlir::OpPassManager& pm) {
+        tensorflow::CreateFusedMhloToTFPipeline(pm);
+      });
+}
+
+void CreateTFFunctionalToExecutorPipeline(mlir::OpPassManager& pm) {
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::CreateFunctionalToExecutorDialectConversionPass());
+}
+
+void RegisterCreateTFFunctionalToExecutorPipeline() {
+  static mlir::PassPipelineRegistration<> pipeline(
+      "tf-functional-to-executor-conversion-pipeline",
+      "Convert fused mhlo op to tf dialect",
+      [](mlir::OpPassManager& pm) {
+        tensorflow::CreateTFFunctionalToExecutorPipeline(pm);
+      });
+}
+
 }  // namespace tensorflow

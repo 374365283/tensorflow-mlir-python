@@ -184,6 +184,18 @@ static inline Status CompileToHloGraphAnalysisFailedError() {
 // line.
 void RegisterConvertMlirToXlaHloPipelineWithDefaults();
 
+void CreateMHloOpFusionPipeline(mlir::OpPassManager& pm);
+
+void RegisterCreateMHloOpFusionPipeline();
+
+void CreateFusedMhloToTFPipeline(mlir::OpPassManager& pm);
+
+void RegisterCreateFusedMhloToTFPipeline();
+
+void CreateTFFunctionalToExecutorPipeline(mlir::OpPassManager& pm);
+
+void RegisterCreateTFFunctionalToExecutorPipeline();
+
 }  // namespace tensorflow
 
 #endif  // TENSORFLOW_COMPILER_MLIR_TENSORFLOW_UTILS_COMPILE_MLIR_UTIL_H_

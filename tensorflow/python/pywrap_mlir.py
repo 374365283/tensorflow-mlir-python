@@ -46,6 +46,12 @@ def import_function(concrete_function, pass_pipeline, show_debug_info):
                         str(concrete_function.function_def).encode('utf-8'),
                         pass_pipeline.encode('utf-8'), show_debug_info)
 
+def export_graphdef(mlir_txt,
+                    pass_pipeline,
+                    show_debug_info):
+  return ExportGraphDef(
+      str(mlir_txt).encode('utf-8'), pass_pipeline.encode('utf-8'),
+      show_debug_info)
 
 def experimental_convert_saved_model_to_mlir(saved_model_path, exported_names,
                                              show_debug_info):
