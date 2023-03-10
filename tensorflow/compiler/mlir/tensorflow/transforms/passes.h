@@ -308,6 +308,8 @@ std::unique_ptr<OperationPass<ModuleOp>> CreateNameAnonymousIteratorsPass();
 // CPU/GPU bridge.
 void CreateTFXLABridgePipeline(OpPassManager& pm);
 
+std::unique_ptr<OperationPass<func::FuncOp>> CreateFusedMhloToTFPass();
+
 }  // namespace TF
 
 namespace tf_executor {
@@ -679,6 +681,7 @@ enum MoveTransposeDirection { kBegin, kEnd };
 #define GEN_PASS_DECL_TRANSFORMEINSUMPASS
 #define GEN_PASS_DECL_UNROLLBATCHMATMULPASS
 #define GEN_PASS_DECL_VERIFYSUITABLEFOREXPORTPASS
+#define GEN_PASS_DECL_FUSEDMHLOTOTFPASS
 #include "tensorflow/compiler/mlir/tensorflow/transforms/tf_passes.h.inc"
 }  // namespace detail
 using namespace detail;  // NOLINT

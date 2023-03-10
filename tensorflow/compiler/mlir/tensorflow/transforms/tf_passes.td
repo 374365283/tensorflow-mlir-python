@@ -2516,3 +2516,8 @@ def NameAnonymousIteratorsPass : Pass<"tf-name-anonymous-iterators", "ModuleOp">
   }];
   let constructor = "TF::CreateNameAnonymousIteratorsPass()";
 }
+
+def FusedMhloToTFPass : Pass<"fused-mhlo-to-tf", "mlir::func::FuncOp"> {
+  let summary = "Convert fused op in MHLO Dialect to TensorFlow Dialect";
+  let constructor = "TF::CreateFusedMhloToTFPass()";
+}
