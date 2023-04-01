@@ -84,3 +84,9 @@ def experimental_convert_saved_model_v1_to_mlir(saved_model_path,
 def experimental_run_pass_pipeline(mlir_txt, pass_pipeline, show_debug_info):
   return ExperimentalRunPassPipeline(
       mlir_txt.encode('utf-8'), pass_pipeline.encode('utf-8'), show_debug_info)
+
+def experimental_run_pdl_pass_pipeline(mlir_txt,
+                          mlir_pdl_txt,
+                          show_debug_info):
+    return ExperimentalRunPDLPassPipeline(str(mlir_txt).encode('utf-8'), 
+           str(mlir_pdl_txt).encode('utf-8'), show_debug_info)

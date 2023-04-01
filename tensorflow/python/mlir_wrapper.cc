@@ -122,4 +122,15 @@ PYBIND11_MODULE(_pywrap_mlir, m) {
           tensorflow::MaybeRaiseRegisteredFromTFStatus(status.get());
           return output;
         });
+    
+  m.def("ExperimentalRunPDLPassPipeline",
+        [](const std::string &mlir_txt, const std::string &pdl_mlir_txt,
+           bool show_debug_info) {
+          tensorflow::Safe_TF_StatusPtr status =
+              tensorflow::make_safe(TF_NewStatus());
+          std::string output = tensorflow::ExperimentalRunPDLPassPipeline(
+              mlir_txt, pdl_mlir_txt, show_debug_info);
+          tensorflow::MaybeRaiseRegisteredFromTFStatus(status.get());
+          return output;
+        });
 };
