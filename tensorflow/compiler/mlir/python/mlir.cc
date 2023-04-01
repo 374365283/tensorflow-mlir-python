@@ -32,6 +32,11 @@ limitations under the License.
 #include "mlir/Parser/Parser.h"  // from @llvm-project
 #include "mlir/Pass/PassManager.h"  // from @llvm-project
 #include "mlir/Pass/PassRegistry.h"  // from @llvm-project
+#include "mlir/Dialect/PDL/IR/PDL.h" // from @llvm-project
+#include "mlir/Dialect/PDLInterp/IR/PDLInterp.h" // from @llvm-project
+#include "mlir/Transforms/GreedyPatternRewriteDriver.h" // from @llvm-project
+#include "mlir/Pass/Pass.h" // from @llvm-project
+
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/c/eager/tfe_context_internal.h"
 #include "tensorflow/c/tf_status.h"
@@ -390,6 +395,100 @@ std::string ExperimentalRunPassPipeline(const std::string& mlir_txt,
     return "// error";
   }
   return MlirModuleToString(*module, show_debug_info);
+}
+
+// pdl support
+static mlir::LogicalResult hasOneUseImpl(mlir::PatternRewriter &rewriter, mlir::Value value) {
+  return mlir::success(value.hasOneUse());
+}
+
+static mlir::LogicalResult customSingleEntityConstraint(mlir::PatternRewriter &rewriter,
+                                                      mlir::Operation *rootOp) {
+  return mlir::success(rootOp->getName().getStringRef() == "test.op");
+}
+
+static mlir::LogicalResult customMultiEntityConstraint(mlir::PatternRewriter &rewriter,
+                                                      mlir::Operation *root,
+                                                      mlir::Operation *rootCopy) {
+  return customSingleEntityConstraint(rewriter, rootCopy);
+}
+
+static mlir::LogicalResult customMultiEntityVariadicConstraint(
+    mlir::PatternRewriter &rewriter, mlir::ValueRange operandValues, mlir::TypeRange typeValues) {
+  if (operandValues.size() != 2 || typeValues.size() != 2)
+    return mlir::failure();
+  return mlir::success();
+}
+
+// Custom creator invoked from PDL.
+static mlir::Operation *customCreate(mlir::PatternRewriter &rewriter, mlir::Operation *op) {
+  return rewriter.create(mlir::OperationState(op->getLoc(), "test.success"));
+}
+
+static auto customVariadicResultCreate(mlir::PatternRewriter &rewriter,
+                                       mlir::Operation *root) {
+  return std::make_pair(root->getOperands(), root->getOperands().getTypes());
+}
+
+static mlir::Type customCreateType(mlir::PatternRewriter &rewriter) {
+  return rewriter.getF32Type();
+}
+
+static std::string customCreateStrAttr(mlir::PatternRewriter &rewriter) {
+  return "test.str";
+}
+
+static void customRewriter(mlir::PatternRewriter &rewriter, 
+                           mlir::Operation *root,
+                           mlir::Value input) {
+  rewriter.create(root->getLoc(), rewriter.getStringAttr("test.success"),
+                  input);
+  rewriter.eraseOp(root);
+}
+
+std::string ExperimentalRunPDLPassPipeline(const std::string& mlir_txt, 
+                                           const std::string& mlir_pdl_txt,
+                                           bool show_debug_info) {
+  mlir::DialectRegistry registry;
+  mlir::RegisterAllTensorFlowDialects(registry);
+  registry.insert<mlir::pdl::PDLDialect,
+                  mlir::pdl_interp::PDLInterpDialect>();
+  mlir::MLIRContext context(registry);
+
+  mlir::OwningOpRef<mlir::ModuleOp> irModule = mlir::parseSourceString<mlir::ModuleOp>(mlir_txt, &context);
+  mlir::OwningOpRef<mlir::ModuleOp> patternModule = mlir::parseSourceString<mlir::ModuleOp>(mlir_pdl_txt, &context);
+  if (!patternModule || !irModule)
+    return "// error";
+
+  irModule->getContext()->allowUnregisteredDialects();
+  
+  mlir::RewritePatternSet patternList(irModule->getContext());
+  patternList.getPDLPatterns().registerConstraintFunction(
+                                    "HasOneUse", hasOneUseImpl);
+  patternList.getPDLPatterns().registerConstraintFunction(
+        "multi_entity_constraint", customMultiEntityConstraint);
+  patternList.getPDLPatterns().registerConstraintFunction(
+        "single_entity_constraint", customSingleEntityConstraint);
+  
+  mlir::PDLPatternModule pdlPattern(std::move(patternModule));
+  pdlPattern.registerConstraintFunction("HasOneUse", hasOneUseImpl);
+  pdlPattern.registerConstraintFunction("multi_entity_constraint",
+                                          customMultiEntityConstraint);
+  pdlPattern.registerConstraintFunction("multi_entity_var_constraint",
+                                          customMultiEntityVariadicConstraint);
+  pdlPattern.registerRewriteFunction("creator", customCreate);
+  pdlPattern.registerRewriteFunction("var_creator",
+                                       customVariadicResultCreate);
+  pdlPattern.registerRewriteFunction("type_creator", customCreateType);
+  pdlPattern.registerRewriteFunction("str_creator", customCreateStrAttr);
+  pdlPattern.registerRewriteFunction("rewriter", customRewriter);
+
+  patternList.add(std::move(pdlPattern));
+
+  (void)applyPatternsAndFoldGreedily(irModule->getBodyRegion(),
+                                       std::move(patternList));
+  
+  return MlirModuleToString(*irModule, show_debug_info);
 }
 
 }  // namespace tensorflow

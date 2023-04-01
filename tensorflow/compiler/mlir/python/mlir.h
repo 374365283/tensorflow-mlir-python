@@ -106,6 +106,10 @@ std::string ExperimentalRunPassPipeline(const std::string &mlir_txt,
                                         bool show_debug_info,
                                         TF_Status *status);
 
+std::string ExperimentalRunPDLPassPipeline(const std::string& mlir_txt, 
+                                           const std::string& mlir_pdl_txt,
+                                           bool show_debug_info);  
+
 }  // namespace tensorflow
 
 #endif  // TENSORFLOW_COMPILER_MLIR_PYTHON_MLIR_H_
