@@ -933,6 +933,7 @@ void RegisterCreateFusedMhloToTFPipeline() {
 
 void CreateTFFunctionalToExecutorPipeline(mlir::OpPassManager& pm) {
   pm.addNestedPass<mlir::func::FuncOp>(mlir::CreateFunctionalToExecutorDialectConversionPass());
+  pm.addNestedPass<mlir::func::FuncOp>(mlir::CreateSplitIntoIslandPerOpPass());
 }
 
 void RegisterCreateTFFunctionalToExecutorPipeline() {
